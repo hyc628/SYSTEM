@@ -1,7 +1,7 @@
 {
-  "name": "hyc-accounting",
-  "version": "2.0.0",
-  "description": "HYC 會計系統",
+  "name": "accounting-system",
+  "version": "2.0.1",
+  "description": "個人記帳系統",
   "main": "main.js",
   "author": "hyc628",
   "repository": {
@@ -23,8 +23,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.hyc.accounting",
-    "productName": "HYC會計系統",
+    "appId": "com.example.accounting",
+    "productName": "會計系統",
     "copyright": "Copyright © 2026 hyc628",
     "publish": [
       {
@@ -51,7 +51,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "HYC會計系統",
+      "shortcutName": "會計系統",
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico",
       "installerHeaderIcon": "icon.ico",

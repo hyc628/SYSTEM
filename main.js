@@ -694,7 +694,7 @@ function createTray() {
 
   try {
     tray = new Tray(trayIcon);
-    tray.setToolTip('HYC會計系統');
+    tray.setToolTip('會計系統');
     console.log('[系統匣] 建立成功');
   } catch (e) {
     console.error('[系統匣] 建立失敗:', e);
