@@ -12,13 +12,158 @@ autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 
 let updateDownloaded = false;
+let downloadWindow = null;
+let updateInfoCache = null;
+let isManualCheck = false;
 
+// =========================================================
+// 下載進度視窗
+// =========================================================
+function showDownloadWindow(info) {
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.focus();
+    return;
+  }
+
+  const iconPath = path.join(__dirname, 'icon.ico');
+
+  downloadWindow = new BrowserWindow({
+    width: 420,
+    height: 240,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    center: true,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    webPreferences: { contextIsolation: true }
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * { box-sizing: border-box; font-family: "Microsoft JhengHei", Arial, sans-serif; }
+        html, body {
+          margin: 0; padding: 0;
+          width: 100%; height: 100%;
+          display: flex; align-items: center; justify-content: center;
+          background: transparent;
+          overflow: hidden;
+        }
+        .box {
+          width: 100%; height: 100%;
+          background: linear-gradient(135deg, #1B2A4E, #0F1B33);
+          border-radius: 16px;
+          padding: 24px 28px;
+          color: white;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+          border: 2px solid #2ECC71;
+          display: flex; flex-direction: column;
+          justify-content: center;
+        }
+        .title {
+          font-size: 18px;
+          font-weight: bold;
+          color: #2ECC71;
+          margin-bottom: 6px;
+          text-align: center;
+        }
+        .version {
+          font-size: 13px;
+          color: #a8b5cc;
+          text-align: center;
+          margin-bottom: 14px;
+        }
+        .percent {
+          font-size: 26px;
+          font-weight: bold;
+          color: #2ECC71;
+          text-align: center;
+          margin-bottom: 10px;
+        }
+        .progress-container {
+          width: 100%;
+          height: 16px;
+          background: rgba(46,204,113,0.2);
+          border-radius: 8px;
+          overflow: hidden;
+          margin-bottom: 10px;
+          position: relative;
+        }
+        .progress-bar {
+          height: 100%;
+          width: 0%;
+          background: linear-gradient(90deg, #2ECC71, #27AE60);
+          border-radius: 8px;
+          transition: width 0.3s ease;
+        }
+        .progress-text {
+          font-size: 13px;
+          color: #cfd8dc;
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 14px;
+        }
+        .hint {
+          font-size: 12px;
+          color: #8095b0;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <div class="title">正在下載更新</div>
+        <div class="version">版本 ${info.version}</div>
+        <div class="percent" id="percent">0%</div>
+        <div class="progress-container">
+          <div class="progress-bar" id="bar"></div>
+        </div>
+        <div class="progress-text">
+          <span id="downloaded">0 MB</span>
+          <span id="total">0 MB</span>
+        </div>
+        <div class="hint">下載完成後會通知您重啟</div>
+      </div>
+      <script>
+        window.updateProgress = function(percent, downloaded, total) {
+          document.getElementById('percent').textContent = percent + '%';
+          document.getElementById('bar').style.width = percent + '%';
+          document.getElementById('downloaded').textContent = (downloaded / 1024 / 1024).toFixed(1) + ' MB';
+          document.getElementById('total').textContent = (total / 1024 / 1024).toFixed(1) + ' MB';
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  downloadWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+
+  downloadWindow.on('closed', () => {
+    downloadWindow = null;
+  });
+
+  return downloadWindow;
+}
+
+// =========================================================
+// 自動更新事件
+// =========================================================
 autoUpdater.on('checking-for-update', () => {
   console.log('[更新] 檢查中...');
 });
 
 autoUpdater.on('update-available', (info) => {
   console.log('[更新] 發現新版本：', info.version);
+  updateInfoCache = info;
+
+  // 顯示下載進度視窗
+  showDownloadWindow(info);
+
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-available', info.version);
   }
@@ -26,15 +171,59 @@ autoUpdater.on('update-available', (info) => {
 
 autoUpdater.on('update-not-available', (info) => {
   console.log('[更新] 已是最新版本');
+
+  // 只有「手動檢查」才彈窗
+  if (isManualCheck && mainWindow && !mainWindow.isDestroyed()) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: '檢查更新',
+      message: '已是最新版本',
+      detail: `目前版本：v${app.getVersion()}\n\n沒有可用的更新。`,
+      buttons: ['確定'],
+      defaultId: 0
+    });
+  }
+  isManualCheck = false;
 });
 
 autoUpdater.on('error', (err) => {
   console.error('[更新] 錯誤：', err);
+
+  // 關閉下載進度視窗
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.close();
+    downloadWindow = null;
+  }
+
+  // 只有「手動檢查」才彈窗
+  if (isManualCheck && mainWindow && !mainWindow.isDestroyed()) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: '檢查更新失敗',
+      message: '無法檢查更新',
+      detail: `錯誤訊息：${err.message || err}\n\n請確認網路連線，或稍後再試。`,
+      buttons: ['確定'],
+      defaultId: 0
+    });
+  }
+  isManualCheck = false;
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
   const percent = Math.round(progressObj.percent);
-  console.log(`[更新] 下載進度：${percent}%`);
+  const downloaded = progressObj.transferred;
+  const total = progressObj.total;
+
+  console.log(`[更新] 下載進度：${percent}% (${(downloaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`);
+
+  // 更新下載視窗的進度條
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.webContents.executeJavaScript(
+      `window.updateProgress(${percent}, ${downloaded}, ${total})`
+    ).catch(() => {});
+  }
+
+  // 也更新主視窗狀態
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-progress', percent);
   }
@@ -44,8 +233,15 @@ autoUpdater.on('update-downloaded', (info) => {
   console.log('[更新] 下載完成，版本：', info.version);
   updateDownloaded = true;
 
+  // 先關閉下載進度視窗
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.close();
+    downloadWindow = null;
+  }
+
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
+  // 跳出「下載完成」對話框
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: '更新完成',
@@ -62,12 +258,23 @@ autoUpdater.on('update-downloaded', (info) => {
   });
 });
 
-async function checkForUpdates() {
+async function checkForUpdates(manual = false) {
+  isManualCheck = manual;
   try {
-    console.log('[更新] 開始檢查...');
+    console.log('[更新] 開始檢查...', manual ? '（手動）' : '（自動）');
     await autoUpdater.checkForUpdates();
   } catch (e) {
     console.error('[更新] 檢查失敗：', e);
+    if (manual && mainWindow && !mainWindow.isDestroyed()) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: '檢查更新失敗',
+        message: '無法檢查更新',
+        detail: `錯誤訊息：${e.message || e}`,
+        buttons: ['確定']
+      });
+    }
+    isManualCheck = false;
   }
 }
 
@@ -727,7 +934,7 @@ function createTray() {
     {
       label: '檢查更新',
       click: () => {
-        checkForUpdates();
+        checkForUpdates(true);
       }
     },
     { type: 'separator' },
@@ -1206,6 +1413,7 @@ ipcMain.handle('set-budgets', (event, budgets) => {
 // =========================================================
 ipcMain.handle('check-for-updates', async () => {
   try {
+    isManualCheck = true;
     const result = await autoUpdater.checkForUpdates();
     if (result && result.updateInfo) {
       const currentVersion = app.getVersion();
@@ -1216,6 +1424,7 @@ ipcMain.handle('check-for-updates', async () => {
     }
     return { ok: true, hasUpdate: false };
   } catch (e) {
+    isManualCheck = false;
     return { ok: false, error: e.message };
   }
 });
@@ -1233,10 +1442,8 @@ ipcMain.handle('get-version', () => {
   return app.getVersion();
 });
 
-// 自動檢查更新設定
 ipcMain.handle('get-auto-check-update', () => {
   const config = loadConfig();
-  // 預設開啟（undefined 視為 true）
   return config.autoCheckUpdate !== false;
 });
 
@@ -1295,7 +1502,6 @@ async function askDataDir(detail) {
 }
 
 app.whenReady().then(async () => {
-  // ===== 開機啟動時，延遲 15 秒讓系統就緒 =====
   if (isHiddenStart) {
     console.log('[開機啟動] 等待 15 秒讓系統匣就緒...');
     await new Promise(r => setTimeout(r, 15000));
@@ -1316,14 +1522,13 @@ app.whenReady().then(async () => {
   await createWindow();
   showSplashThenWindow({ hideAfter: isHiddenStart });
 
-  // ===== 延遲 5 秒後檢查更新（可設定關閉） =====
   const cfg = loadConfig();
-  const autoCheckUpdate = cfg.autoCheckUpdate !== false; // 預設開啟
+  const autoCheckUpdate = cfg.autoCheckUpdate !== false;
 
   if (autoCheckUpdate) {
     setTimeout(() => {
       console.log('[更新] 自動檢查更新（可於設定關閉）');
-      checkForUpdates();
+      checkForUpdates(false);
     }, 5000);
   } else {
     console.log('[更新] 自動檢查已關閉');
