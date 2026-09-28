@@ -1,0 +1,79 @@
+{
+  "name": "hyc-accounting",
+  "version": "2.0.0",
+  "description": "HYC 會計系統",
+  "main": "main.js",
+  "author": "hyc628",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyc628/SYSTEM.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --publish always",
+    "build:local": "electron-builder --win",
+    "publish": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "firebase": "^11.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.hyc.accounting",
+    "productName": "HYC會計系統",
+    "copyright": "Copyright © 2026 hyc628",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "hyc628",
+        "repo": "SYSTEM",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HYC會計系統",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico",
+      "license": "license.txt",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": false
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "terms-preload.js",
+      "firebase-config.js",
+      "firebase-service.js",
+      "dialog.js",
+      "login.html",
+      "login.js",
+      "index.html",
+      "renderer.js",
+      "style.css",
+      "icon.ico",
+      "logo.png"
+    ]
+  }
+}

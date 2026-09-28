@@ -1,0 +1,31 @@
+# 依賴套件
+node_modules/
+
+# 打包輸出
+dist/
+build/
+
+# 資料庫快取
+fb-cache.json
+
+# 日誌
+*.log
+npm-debug.log*
+
+# 環境變數
+.env
+
+# 系統檔案
+Thumbs.db
+.DS_Store
+
+# 編輯器
+.vscode/
+.idea/
+
+# 測試
+coverage/
+
+# 暫存
+*.tmp
+*.baktest-firebase.js 

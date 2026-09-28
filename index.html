@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>HYC會計系統</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="user-bar">
+    <div class="user-info">
+      <img src="logo.png" alt="Logo" class="mini-logo" onerror="this.style.display='none'">
+      <span>HYC會計系統</span>
+    </div>
+    <div class="user-info">
+      <span>👤 <b id="current-user-display"></b></span>
+      <button id="logout-btn">登出</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="input">📝 記帳明細</button>
+    <button class="tab-btn" data-tab="calendar">📅 日曆</button>
+    <button class="tab-btn" data-tab="budget">💰 預算</button>
+    <button class="tab-btn" data-tab="stats">📊 統計分析</button>
+    <button class="tab-btn" data-tab="report">📈 年度報告</button>
+    <button class="tab-btn" data-tab="settings">⚙️ 設定</button>
+  </div>
+
+  <!-- ========== 記帳明細 ========== -->
+  <section id="tab-input" class="tab-content active">
+    <div class="card">
+      <h3>新增記錄</h3>
+      <div class="form-grid">
+        <label>類型：</label>
+        <div>
+          <label><input type="radio" name="type" value="支出" checked> 支出</label>
+          <label style="margin-left:16px"><input type="radio" name="type" value="收入"> 收入</label>
+        </div>
+
+        <label>日期：</label>
+        <div class="inline">
+          <select id="year"></select> 年
+          <select id="month"></select> 月
+          <select id="day"></select> 日
+        </div>
+
+        <label>時間：</label>
+        <div class="inline">
+          <select id="hour"></select> 時
+          <select id="minute"></select> 分
+        </div>
+
+        <label>類別：</label>
+        <select id="category"></select>
+
+        <label>項目內容：</label>
+        <input type="text" id="item" placeholder="例如：午餐、加油">
+
+        <label>金額：</label>
+        <input type="number" id="amount" min="1" step="1">
+
+        <label id="payment-label">付款方式：</label>
+        <select id="payment"></select>
+
+        <label id="mobile-label" class="hidden">行動支付：</label>
+        <select id="mobile" class="hidden"></select>
+
+        <label></label>
+        <button id="add-btn" class="primary">＋ 新增記錄</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>記帳明細</h3>
+
+      <div class="filter-bar">
+        <div class="filter-row">
+          <div class="filter-item">
+            <label>🔍 關鍵字</label>
+            <input type="text" id="filter-keyword" placeholder="搜尋項目內容…">
+          </div>
+
+          <div class="filter-item">
+            <label>類型</label>
+            <select id="filter-type">
+              <option value="">全部</option>
+              <option value="支出">支出</option>
+              <option value="收入">收入</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label>類別</label>
+            <select id="filter-category">
+              <option value="">全部</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label>付款方式</label>
+            <select id="filter-payment">
+              <option value="">全部</option>
+              <option value="現金">現金</option>
+              <option value="悠遊卡">悠遊卡</option>
+              <option value="行動支付">行動支付</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label>月份</label>
+            <select id="filter-month">
+              <option value="">全部</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <div class="filter-item">
+            <label>金額範圍</label>
+            <div class="range-inputs">
+              <input type="number" id="filter-amount-min" placeholder="最低" min="0">
+              <span>~</span>
+              <input type="number" id="filter-amount-max" placeholder="最高" min="0">
+            </div>
+          </div>
+
+          <div class="filter-item">
+            <label>&nbsp;</label>
+            <button id="clear-filter-btn" class="info">♻️ 清除篩選</button>
+          </div>
+
+          <div class="filter-item" style="margin-left:auto;text-align:right;">
+            <label>&nbsp;</label>
+            <div id="filter-result" class="filter-result">顯示 0 / 0 筆</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="records-table">
+          <thead>
+            <tr>
+              <th>類型</th><th>日期</th><th>時間</th><th>類別</th>
+              <th>項目內容</th><th>金額</th><th>付款方式</th><th>行動支付</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="footer-bar">
+        <div id="summary" class="summary"></div>
+        <div>
+          <button id="clear-btn" class="danger">清除全部</button>
+          <button id="delete-btn" class="danger">刪除選取</button>
+          <button id="export-btn" class="info">匯出 CSV</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 日曆 ========== -->
+  <section id="tab-calendar" class="tab-content">
+    <div class="card">
+      <div class="calendar-header">
+        <button id="cal-prev" class="cal-nav-btn">◀ 上一月</button>
+        <div class="calendar-title">
+          <span id="cal-year">2026</span> 年
+          <span id="cal-month">09</span> 月
+        </div>
+        <button id="cal-next" class="cal-nav-btn">下一月 ▶</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;">
+        <button id="cal-today" class="info" style="font-size:13px;">回到本月</button>
+      </div>
+      <div id="cal-summary" class="calendar-summary"></div>
+    </div>
+
+    <div class="card">
+      <div class="calendar-grid-header">
+        <div>日</div><div>一</div><div>二</div><div>三</div>
+        <div>四</div><div>五</div><div>六</div>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+    </div>
+
+    <div class="card" id="cal-day-detail-card" style="display:none;">
+      <h3 id="cal-day-detail-title">當日記錄</h3>
+      <div class="table-wrap">
+        <table id="cal-day-table">
+          <thead>
+            <tr>
+              <th>類型</th><th>時間</th><th>類別</th>
+              <th>項目內容</th><th>金額</th><th>付款方式</th><th>行動支付</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="cal-day-summary" class="summary" style="margin-top:12px;"></div>
+    </div>
+  </section>
+
+  <!-- ========== 預算 ========== -->
+  <section id="tab-budget" class="tab-content">
+    <div class="card">
+      <div class="calendar-header">
+        <button id="budget-prev" class="cal-nav-btn">◀ 上一月</button>
+        <div class="calendar-title">
+          <span id="budget-year">2026</span> 年
+          <span id="budget-month">09</span> 月
+        </div>
+        <button id="budget-next" class="cal-nav-btn">下一月 ▶</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;">
+        <button id="budget-today" class="info" style="font-size:13px;">回到本月</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💰 每月總預算</h3>
+      <div class="budget-total-box">
+        <div class="budget-total-input">
+          <label>本月總預算：</label>
+          <input type="number" id="budget-total-input" placeholder="輸入金額" min="0" step="1">
+          <button id="budget-total-save" class="primary" style="padding:7px 20px;">儲存</button>
+        </div>
+        <div class="budget-total-info">
+          <div class="budget-label">已花：<span id="budget-total-spent">0</span> 元</div>
+          <div class="budget-label">剩餘：<span id="budget-total-remain">0</span> 元</div>
+        </div>
+        <div class="progress-bar">
+          <div id="budget-total-bar" class="progress-fill"></div>
+        </div>
+        <div id="budget-total-percent" class="budget-percent">0%</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📊 分類預算</h3>
+      <p style="font-size:13px;color:#8095b0;margin:0 0 12px 0;">
+        設定各類別的預算，留空表示不限制。
+      </p>
+      <div id="budget-categories-list" class="budget-categories-list"></div>
+      <div style="text-align:right;margin-top:12px;">
+        <button id="budget-save-all" class="primary">💾 儲存全部預算</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 統計分析 ========== -->
+  <section id="tab-stats" class="tab-content">
+    <div class="card">
+      <div class="inline">
+        <label>選擇月份：</label>
+        <select id="stats-month"></select>
+        <button id="refresh-stats">重整</button>
+      </div>
+      <div id="stats-summary" class="summary"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="card">
+        <h3>依類別統計（支出）</h3>
+        <table class="stats-table" id="cat-stats">
+          <thead><tr><th>類別</th><th>金額</th><th>占比</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>依付款方式統計（支出）</h3>
+        <table class="stats-table" id="pay-stats">
+          <thead><tr><th>付款方式</th><th>金額</th><th>占比</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>依行動支付統計（支出）</h3>
+        <table class="stats-table" id="mob-stats">
+          <thead><tr><th>行動支付</th><th>金額</th><th>占比</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 年度報告 ========== -->
+  <section id="tab-report" class="tab-content">
+    <div class="card">
+      <div class="inline">
+        <label>選擇年份：</label>
+        <select id="report-year"></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📊 年度摘要（今年 vs 去年）</h3>
+      <table class="report-summary-table">
+        <thead>
+          <tr>
+            <th>項目</th>
+            <th id="report-year-label-1">今年</th>
+            <th id="report-year-label-2">去年</th>
+            <th>增減</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="report-label">收入</td>
+            <td id="r-income-1" class="income">0</td>
+            <td id="r-income-2" class="income">0</td>
+            <td id="r-income-diff"></td>
+          </tr>
+          <tr>
+            <td class="report-label">支出</td>
+            <td id="r-expense-1" class="expense">0</td>
+            <td id="r-expense-2" class="expense">0</td>
+            <td id="r-expense-diff"></td>
+          </tr>
+          <tr>
+            <td class="report-label">結餘</td>
+            <td id="r-balance-1">0</td>
+            <td id="r-balance-2">0</td>
+            <td id="r-balance-diff"></td>
+          </tr>
+          <tr>
+            <td class="report-label">筆數</td>
+            <td id="r-count-1">0</td>
+            <td id="r-count-2">0</td>
+            <td id="r-count-diff"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>📅 每月收支</h3>
+      <div id="monthly-chart" class="monthly-chart"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="card">
+        <h3>🏆 類別排行 Top 5（支出）</h3>
+        <table class="stats-table" id="year-cat-stats">
+          <thead><tr><th>類別</th><th>金額</th><th>占比</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>💳 付款方式排行</h3>
+        <table class="stats-table" id="year-pay-stats">
+          <thead><tr><th>付款方式</th><th>金額</th><th>占比</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>🔥 花最多的月份</h3>
+        <div id="top-month-info" class="top-month-info">無資料</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 設定 ========== -->
+  <section id="tab-settings" class="tab-content">
+    <div class="card">
+      <h3>一般設定</h3>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">開機時自動啟動</div>
+          <div class="setting-desc">Windows 開機後自動啟動，並縮到系統匣背景執行</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="auto-start-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <hr>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">🌙 深色模式</div>
+          <div class="setting-desc">使用深色主題，減少眼睛疲勞</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="dark-mode-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <hr>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">資料存放位置</div>
+          <div class="setting-desc" id="data-dir-display">載入中…</div>
+        </div>
+        <button id="change-dir-btn" class="info">更換資料夾</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>消費提醒</h3>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">啟用消費提醒</div>
+          <div class="setting-desc">定時提醒您記錄消費（預設關閉）</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="reminder-enabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <hr id="hr-reminder-1">
+
+      <div class="setting-row" id="row-reminder-interval">
+        <div>
+          <div class="setting-title">提醒頻率</div>
+          <div class="setting-desc">每隔多久提醒一次</div>
+        </div>
+        <select id="reminder-interval" style="width:140px;">
+          <option value="15">15 分鐘</option>
+          <option value="30">30 分鐘</option>
+          <option value="60" selected>1 小時</option>
+          <option value="120">2 小時</option>
+          <option value="180">3 小時</option>
+          <option value="240">4 小時</option>
+        </select>
+      </div>
+
+      <hr id="hr-reminder-2">
+
+      <div class="setting-row" id="row-idle-threshold">
+        <div>
+          <div class="setting-title">閒置時不提醒</div>
+          <div class="setting-desc">電腦無操作超過指定時間，則不跳出提醒</div>
+        </div>
+        <select id="idle-threshold" style="width:140px;">
+          <option value="5">5 分鐘</option>
+          <option value="10">10 分鐘</option>
+          <option value="30" selected>30 分鐘</option>
+          <option value="60">1 小時</option>
+          <option value="120">2 小時</option>
+          <option value="180">3 小時</option>
+          <option value="240">4 小時</option>
+          <option value="300">5 小時</option>
+        </select>
+      </div>
+
+      <hr>
+
+      <div class="setting-row" id="row-test-reminder">
+        <div>
+          <div class="setting-title">測試提醒</div>
+          <div class="setting-desc">立即觸發一次提醒，確認設定正確</div>
+        </div>
+        <button id="test-reminder-btn" class="info">測試</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔒 帳號安全</h3>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">變更使用者名稱</div>
+          <div class="setting-desc">
+            目前：<b id="display-username">-</b>
+          </div>
+        </div>
+        <button id="change-username-btn" class="info">變更</button>
+      </div>
+
+      <hr>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">變更 Email</div>
+          <div class="setting-desc">
+            目前：<b id="display-email">-</b>
+          </div>
+        </div>
+        <button id="change-email-btn" class="info">變更</button>
+      </div>
+
+      <hr>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">變更密碼</div>
+          <div class="setting-desc">輸入舊密碼與新密碼來變更</div>
+        </div>
+        <button id="change-password-btn" class="info">變更密碼</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>關於</h3>
+      <div class="about-box">
+        <img src="logo.png" alt="Logo" class="about-logo" onerror="this.style.display='none'">
+        <div style="flex:1;">
+          <div class="about-title">HYC會計系統</div>
+          <div class="about-sub">ACCOUNTING SYSTEM</div>
+          <div class="about-info">版本 <span id="app-version">載入中…</span> ｜ Electron + Firebase</div>
+          <div class="about-info">雲端同步，可跨裝置使用</div>
+        </div>
+      </div>
+      <hr>
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">啟動時自動檢查更新</div>
+          <div class="setting-desc">開啟後，每次啟動會自動檢查是否有新版本</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="auto-update-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <hr>
+      <div class="setting-row">
+        <div>
+          <div class="setting-title">手動檢查更新</div>
+          <div class="setting-desc" id="update-status">點擊右側按鈕檢查最新版本</div>
+        </div>
+        <button id="check-update-btn" class="info">檢查更新</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="dialog.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
