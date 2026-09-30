@@ -66,16 +66,23 @@ if "%SKIP_GIT%"=="0" (
     git status --short
     echo.
     set /p PROCEED=是否一起 commit 這些變更? [Y/N]^(預設 Y^): 
-    if /i "%PROCEED%"=="N" (
-      echo [X] 使用者取消
-      pause
-      exit /b 1
-    )
+    if "%PROCEED%"=="" set PROCEED=Y
+    if /i "%PROCEED%"=="N" goto :cancelled
+    if /i "%PROCEED%"=="NO" goto :cancelled
   ) else (
     echo [OK] git 工作區乾淨
   )
 )
 echo.
+goto :after_check
+
+:cancelled
+echo.
+echo [X] 使用者取消發布
+pause
+exit /b 1
+
+:after_check
 
 REM ===== 清除舊 dist =====
 echo [1/4] 清除舊的 dist 資料夾...

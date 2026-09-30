@@ -25,7 +25,14 @@ Thumbs.db
 
 # 測試
 coverage/
+test-firebase.js
 
 # 暫存
 *.tmp
-*.baktest-firebase.js 
+*.bak
+
+# 發布腳本（本機用，不上傳）
+release.bat
+
+# 暫存檔案
+temp_git_status.txt
