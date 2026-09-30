@@ -8,9 +8,9 @@ const fb = require('./firebase-service');
 // =========================================================
 // 自動更新設定
 // =========================================================
-autoUpdater.autoDownload = false;                    // 手動觸發下載
+autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
-autoUpdater.disableDifferentialDownload = true;      // 關閉差分下載，避免卡住
+autoUpdater.disableDifferentialDownload = true;
 
 let updateDownloaded = false;
 let downloadWindow = null;
@@ -18,10 +18,7 @@ let updateInfoCache = null;
 let isManualCheck = false;
 
 // =========================================================
-// 下載進度視窗
-// 非模態 + 發光動畫 + 平滑進度 + 邊跑邊閃
-// + 驗證/安裝階段 + 倒數 + 動態點
-// + Windows 開機風格轉圈圈（3/4 圓弧，缺口旋轉，黃/綠）
+// 下載進度視窗（SVG 3/4 圓弧轉圈圈）
 // =========================================================
 function showDownloadWindow(info) {
   if (downloadWindow && !downloadWindow.isDestroyed()) {
@@ -73,7 +70,6 @@ function showDownloadWindow(info) {
           overflow: hidden;
         }
 
-        /* 背景光暈 */
         .glow {
           position: absolute;
           inset: 0;
@@ -116,7 +112,6 @@ function showDownloadWindow(info) {
           transition: text-shadow 0.4s;
         }
 
-        /* 進度條 */
         .progress-container {
           width: 100%;
           height: 20px;
@@ -145,7 +140,6 @@ function showDownloadWindow(info) {
           100% { background-position: -200% 0; }
         }
 
-        /* 邊跑邊閃 */
         .progress-bar::after {
           content: "";
           position: absolute;
@@ -195,7 +189,6 @@ function showDownloadWindow(info) {
           text-shadow: 0 0 10px rgba(46,204,113,0.8);
         }
 
-        /* 剩餘秒數 */
         .countdown {
           font-size: 22px;
           font-weight: bold;
@@ -215,25 +208,21 @@ function showDownloadWindow(info) {
           text-shadow: 0 0 16px rgba(46,204,113,0.9);
         }
 
-        /* ===== Windows 開機風格轉圈圈（3/4 圓弧，缺口旋轉，黃/綠） ===== */
+        /* ===== SVG 3/4 圓弧轉圈圈 ===== */
         .spinner {
           display: none;
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           margin: 12px auto 8px;
           position: relative;
           z-index: 1;
         }
 
-        .spinner .ring {
+        .spinner svg {
           width: 100%;
           height: 100%;
-          position: absolute;
-          top: 0; left: 0;
-          border-radius: 50%;
-          /* 缺口圓弧：3 邊有顏色，1 邊透明 */
-          border: 3px solid transparent;
           animation: spin 1.4s linear infinite;
+          transform-origin: 50% 50%;
         }
 
         @keyframes spin {
@@ -243,18 +232,7 @@ function showDownloadWindow(info) {
         .spinner.verify { display: block; }
         .spinner.install { display: block; }
 
-        /* 驗證階段：黃色（純色，不發光） */
-        .spinner.verify .ring {
-          border-top-color: #FFD54F;
-          border-right-color: #FFD54F;
-          border-bottom-color: #FFD54F;
-        }
-
-        /* 安裝階段：綠色（純色，轉更慢） */
-        .spinner.install .ring {
-          border-top-color: #2ECC71;
-          border-right-color: #2ECC71;
-          border-bottom-color: #2ECC71;
+        .spinner.install svg {
           animation: spin 1.8s linear infinite;
         }
       </style>
@@ -274,7 +252,15 @@ function showDownloadWindow(info) {
         </div>
         <div class="hint" id="hint">即將開始下載更新檔...</div>
         <div class="spinner" id="spinner">
-          <div class="ring"></div>
+          <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="16"
+                    fill="none"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-dasharray="75 26"
+                    stroke="#FFD54F"
+                    id="arc" />
+          </svg>
         </div>
         <div class="countdown" id="countdown"></div>
       </div>
@@ -317,6 +303,7 @@ function showDownloadWindow(info) {
           const title = document.getElementById('title');
           const hint = document.getElementById('hint');
           const spinner = document.getElementById('spinner');
+          const arc = document.getElementById('arc');
           const bar = document.getElementById('bar');
           const percent = document.getElementById('percent');
           const countdown = document.getElementById('countdown');
@@ -331,6 +318,7 @@ function showDownloadWindow(info) {
             title.textContent = '正在驗證下載';
             hint.className = 'hint verify';
             spinner.className = 'spinner verify';
+            arc.setAttribute('stroke', '#FFD54F');
             bar.style.width = '100%';
             percent.textContent = '100%';
             countdown.className = 'countdown verify';
@@ -354,6 +342,7 @@ function showDownloadWindow(info) {
             title.textContent = '驗證完成，準備安裝';
             hint.className = 'hint install';
             spinner.className = 'spinner install';
+            arc.setAttribute('stroke', '#2ECC71');
             bar.style.width = '100%';
             percent.textContent = '100%';
             countdown.className = 'countdown install';
@@ -424,7 +413,6 @@ autoUpdater.on('update-available', (info) => {
       console.log('[更新] 使用者選擇立即更新');
       showDownloadWindow(info);
 
-      // 先顯示「準備中」1.5 秒，再開始下載
       setTimeout(() => {
         if (downloadWindow && !downloadWindow.isDestroyed()) {
           downloadWindow.webContents.executeJavaScript(`
@@ -526,7 +514,6 @@ autoUpdater.on('update-downloaded', async (info) => {
   const VERIFY_SECONDS = 10;
   const INSTALL_SECONDS = 10;
 
-  // 先讓進度條平滑補到 100%
   if (downloadWindow && !downloadWindow.isDestroyed()) {
     downloadWindow.webContents.executeJavaScript(`
       document.getElementById('bar').style.width = '100%';
