@@ -8,8 +8,9 @@ const fb = require('./firebase-service');
 // =========================================================
 // 自動更新設定
 // =========================================================
-autoUpdater.autoDownload = true;
+autoUpdater.autoDownload = false;                    // 手動觸發下載
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.disableDifferentialDownload = true;      // 關閉差分下載，避免卡住
 
 let updateDownloaded = false;
 let downloadWindow = null;
@@ -18,6 +19,9 @@ let isManualCheck = false;
 
 // =========================================================
 // 下載進度視窗
+// 非模態 + 發光動畫 + 平滑進度 + 邊跑邊閃
+// + 驗證/安裝階段 + 倒數 + 動態點
+// + Windows 開機風格轉圈圈（缺口圓弧，黃/綠）
 // =========================================================
 function showDownloadWindow(info) {
   if (downloadWindow && !downloadWindow.isDestroyed()) {
@@ -28,14 +32,15 @@ function showDownloadWindow(info) {
   const iconPath = path.join(__dirname, 'icon.ico');
 
   downloadWindow = new BrowserWindow({
-    width: 420,
-    height: 240,
+    width: 440,
+    height: 280,
     frame: false,
     resizable: false,
     minimizable: false,
     maximizable: false,
     alwaysOnTop: true,
     center: true,
+    parent: mainWindow,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: { contextIsolation: true }
   });
@@ -60,64 +65,206 @@ function showDownloadWindow(info) {
           border-radius: 16px;
           padding: 24px 28px;
           color: white;
-          box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 40px rgba(46,204,113,0.35);
           border: 2px solid #2ECC71;
           display: flex; flex-direction: column;
           justify-content: center;
+          position: relative;
+          overflow: hidden;
         }
+
+        /* 背景光暈 */
+        .glow {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 50% 0%, rgba(46,204,113,0.35), transparent 65%);
+          animation: glowPulse 2s ease-in-out infinite;
+          pointer-events: none;
+        }
+        @keyframes glowPulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
         .title {
           font-size: 18px;
           font-weight: bold;
           color: #2ECC71;
           margin-bottom: 6px;
           text-align: center;
+          position: relative;
+          z-index: 1;
+          text-shadow: 0 0 12px rgba(46,204,113,0.9);
         }
         .version {
           font-size: 13px;
           color: #a8b5cc;
           text-align: center;
           margin-bottom: 14px;
+          position: relative;
+          z-index: 1;
         }
         .percent {
-          font-size: 26px;
+          font-size: 30px;
           font-weight: bold;
           color: #2ECC71;
           text-align: center;
           margin-bottom: 10px;
+          position: relative;
+          z-index: 1;
+          text-shadow: 0 0 20px rgba(46,204,113,1), 0 0 40px rgba(46,204,113,0.6);
+          transition: text-shadow 0.4s;
         }
+
+        /* 進度條 */
         .progress-container {
           width: 100%;
-          height: 16px;
-          background: rgba(46,204,113,0.2);
-          border-radius: 8px;
+          height: 20px;
+          background: rgba(46,204,113,0.18);
+          border-radius: 10px;
           overflow: hidden;
           margin-bottom: 10px;
           position: relative;
+          z-index: 1;
+          box-shadow: inset 0 2px 8px rgba(0,0,0,0.4), 0 0 12px rgba(46,204,113,0.35);
         }
         .progress-bar {
           height: 100%;
           width: 0%;
-          background: linear-gradient(90deg, #2ECC71, #27AE60);
-          border-radius: 8px;
-          transition: width 0.3s ease;
+          background: linear-gradient(90deg, #2ECC71, #27AE60, #2ECC71);
+          background-size: 200% 100%;
+          border-radius: 10px;
+          transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 0 20px rgba(46,204,113,1), 0 0 40px rgba(46,204,113,0.6);
+          animation: barFlow 3s linear infinite;
         }
+        @keyframes barFlow {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+
+        /* 邊跑邊閃 */
+        .progress-bar::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,0.9),
+            rgba(255,255,255,0.9),
+            transparent
+          );
+          animation: shine 2s linear infinite;
+        }
+        @keyframes shine {
+          0% { left: -100%; }
+          100% { left: 100%; }
+        }
+
         .progress-text {
           font-size: 13px;
           color: #cfd8dc;
           display: flex;
           justify-content: space-between;
-          margin-bottom: 14px;
+          margin-bottom: 12px;
+          position: relative;
+          z-index: 1;
         }
         .hint {
-          font-size: 12px;
-          color: #8095b0;
+          font-size: 13px;
+          color: #9fb3cc;
           text-align: center;
+          position: relative;
+          z-index: 1;
+          letter-spacing: 1px;
+          min-height: 20px;
+          transition: color 0.3s;
+        }
+        .hint.verify {
+          color: #FFD54F;
+          text-shadow: 0 0 10px rgba(255,213,79,0.7);
+        }
+        .hint.install {
+          color: #2ECC71;
+          text-shadow: 0 0 10px rgba(46,204,113,0.8);
+        }
+
+        /* 剩餘秒數 */
+        .countdown {
+          font-size: 22px;
+          font-weight: bold;
+          text-align: center;
+          margin-top: 6px;
+          position: relative;
+          z-index: 1;
+          min-height: 28px;
+          transition: color 0.3s;
+        }
+        .countdown.verify {
+          color: #FFD54F;
+          text-shadow: 0 0 16px rgba(255,213,79,0.9);
+        }
+        .countdown.install {
+          color: #2ECC71;
+          text-shadow: 0 0 16px rgba(46,204,113,0.9);
+        }
+
+        /* ===== Windows 開機風格轉圈圈（缺口圓弧，黃/綠） ===== */
+        .spinner {
+          display: none;
+          width: 36px;
+          height: 36px;
+          margin: 12px auto 8px;
+          position: relative;
+          z-index: 1;
+        }
+
+        .spinner .ring {
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          top: 0; left: 0;
+          border-radius: 50%;
+          /* 缺口圓弧：3 邊有顏色，1 邊透明 */
+          border: 3px solid transparent;
+          animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .spinner.verify { display: block; }
+        .spinner.install { display: block; }
+
+        /* 驗證階段：黃色 */
+        .spinner.verify .ring {
+          border-top-color: #FFD54F;
+          border-right-color: #FFD54F;
+          border-bottom-color: #FFD54F;
+          box-shadow: 0 0 10px rgba(255,213,79,0.7), 0 0 20px rgba(255,213,79,0.35);
+        }
+
+        /* 安裝階段：綠色，轉更慢 */
+        .spinner.install .ring {
+          border-top-color: #2ECC71;
+          border-right-color: #2ECC71;
+          border-bottom-color: #2ECC71;
+          box-shadow: 0 0 10px rgba(46,204,113,0.7), 0 0 20px rgba(46,204,113,0.35);
+          animation: spin 1.6s linear infinite;
         }
       </style>
     </head>
     <body>
       <div class="box">
-        <div class="title">正在下載更新</div>
+        <div class="glow"></div>
+        <div class="title" id="title">正在準備下載</div>
         <div class="version">版本 ${info.version}</div>
         <div class="percent" id="percent">0%</div>
         <div class="progress-container">
@@ -127,7 +274,11 @@ function showDownloadWindow(info) {
           <span id="downloaded">0 MB</span>
           <span id="total">0 MB</span>
         </div>
-        <div class="hint">下載完成後會通知您重啟</div>
+        <div class="hint" id="hint">即將開始下載更新檔...</div>
+        <div class="spinner" id="spinner">
+          <div class="ring"></div>
+        </div>
+        <div class="countdown" id="countdown"></div>
       </div>
       <script>
         window.updateProgress = function(percent, downloaded, total) {
@@ -135,6 +286,95 @@ function showDownloadWindow(info) {
           document.getElementById('bar').style.width = percent + '%';
           document.getElementById('downloaded').textContent = (downloaded / 1024 / 1024).toFixed(1) + ' MB';
           document.getElementById('total').textContent = (total / 1024 / 1024).toFixed(1) + ' MB';
+        };
+
+        window.startDownload = function() {
+          document.getElementById('title').textContent = '正在下載更新';
+          const hint = document.getElementById('hint');
+          hint.textContent = '正在從 GitHub 下載檔案...';
+          hint.className = 'hint';
+        };
+
+        let countdownTimer = null;
+        let dotsTimer = null;
+
+        function startDots(textEl, baseText) {
+          if (dotsTimer) clearInterval(dotsTimer);
+          let n = 0;
+          textEl.textContent = baseText;
+          dotsTimer = setInterval(() => {
+            n = (n + 1) % 4;
+            textEl.textContent = baseText + '.'.repeat(n);
+          }, 400);
+        }
+
+        function stopDots() {
+          if (dotsTimer) {
+            clearInterval(dotsTimer);
+            dotsTimer = null;
+          }
+        }
+
+        window.setPhase = function(phase, totalSeconds) {
+          const title = document.getElementById('title');
+          const hint = document.getElementById('hint');
+          const spinner = document.getElementById('spinner');
+          const bar = document.getElementById('bar');
+          const percent = document.getElementById('percent');
+          const countdown = document.getElementById('countdown');
+
+          if (countdownTimer) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+          }
+          stopDots();
+
+          if (phase === 'verify') {
+            title.textContent = '正在驗證下載';
+            hint.className = 'hint verify';
+            spinner.className = 'spinner verify';
+            bar.style.width = '100%';
+            percent.textContent = '100%';
+            countdown.className = 'countdown verify';
+
+            startDots(hint, '正在比對檔案指紋（SHA512）');
+
+            let remain = totalSeconds || 10;
+            countdown.textContent = '剩餘 ' + remain + ' 秒';
+            countdownTimer = setInterval(() => {
+              remain -= 1;
+              if (remain <= 0) {
+                countdown.textContent = '';
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+              } else {
+                countdown.textContent = '剩餘 ' + remain + ' 秒';
+              }
+            }, 1000);
+
+          } else if (phase === 'install') {
+            title.textContent = '驗證完成，準備安裝';
+            hint.className = 'hint install';
+            spinner.className = 'spinner install';
+            bar.style.width = '100%';
+            percent.textContent = '100%';
+            countdown.className = 'countdown install';
+
+            startDots(hint, '即將自動重啟並套用更新');
+
+            let remain = totalSeconds || 10;
+            countdown.textContent = '剩餘 ' + remain + ' 秒';
+            countdownTimer = setInterval(() => {
+              remain -= 1;
+              if (remain <= 0) {
+                countdown.textContent = '';
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+              } else {
+                countdown.textContent = '剩餘 ' + remain + ' 秒';
+              }
+            }, 1000);
+          }
         };
       </script>
     </body>
@@ -161,8 +401,65 @@ autoUpdater.on('update-available', (info) => {
   console.log('[更新] 發現新版本：', info.version);
   updateInfoCache = info;
 
-  // 顯示下載進度視窗
-  showDownloadWindow(info);
+  if (!isManualCheck) {
+    const config = loadConfig();
+    const skipVersion = config.skipUpdateVersion || '';
+    if (skipVersion === info.version) {
+      console.log(`[更新] 使用者已跳過版本 ${info.version}，不再提醒`);
+      return;
+    }
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: '發現新版本',
+    message: `發現新版本 ${info.version}！`,
+    detail: `目前版本：v${app.getVersion()}\n\n請問是否要立即更新？`,
+    buttons: ['立即更新', '稍後提醒', '跳過這個版本'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  }).then((result) => {
+    if (result.response === 0) {
+      console.log('[更新] 使用者選擇立即更新');
+      showDownloadWindow(info);
+
+      // 先顯示「準備中」1.5 秒，再開始下載
+      setTimeout(() => {
+        if (downloadWindow && !downloadWindow.isDestroyed()) {
+          downloadWindow.webContents.executeJavaScript(`
+            if (window.startDownload) window.startDownload();
+          `).catch(() => {});
+        }
+
+        autoUpdater.downloadUpdate().catch((err) => {
+          console.error('[更新] 下載失敗：', err);
+          if (downloadWindow && !downloadWindow.isDestroyed()) {
+            downloadWindow.close();
+            downloadWindow = null;
+          }
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            dialog.showMessageBox(mainWindow, {
+              type: 'error',
+              title: '下載失敗',
+              message: '無法下載更新',
+              detail: `錯誤訊息：${err.message || err}`,
+              buttons: ['確定']
+            });
+          }
+        });
+      }, 1500);
+
+    } else if (result.response === 1) {
+      console.log('[更新] 使用者選擇稍後提醒');
+    } else if (result.response === 2) {
+      console.log(`[更新] 使用者跳過版本 ${info.version}`);
+      updateConfig({ skipUpdateVersion: info.version });
+    }
+    isManualCheck = false;
+  });
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-available', info.version);
@@ -172,7 +469,6 @@ autoUpdater.on('update-available', (info) => {
 autoUpdater.on('update-not-available', (info) => {
   console.log('[更新] 已是最新版本');
 
-  // 只有「手動檢查」才彈窗
   if (isManualCheck && mainWindow && !mainWindow.isDestroyed()) {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
@@ -189,13 +485,11 @@ autoUpdater.on('update-not-available', (info) => {
 autoUpdater.on('error', (err) => {
   console.error('[更新] 錯誤：', err);
 
-  // 關閉下載進度視窗
   if (downloadWindow && !downloadWindow.isDestroyed()) {
     downloadWindow.close();
     downloadWindow = null;
   }
 
-  // 只有「手動檢查」才彈窗
   if (isManualCheck && mainWindow && !mainWindow.isDestroyed()) {
     dialog.showMessageBox(mainWindow, {
       type: 'warning',
@@ -216,46 +510,57 @@ autoUpdater.on('download-progress', (progressObj) => {
 
   console.log(`[更新] 下載進度：${percent}% (${(downloaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`);
 
-  // 更新下載視窗的進度條
   if (downloadWindow && !downloadWindow.isDestroyed()) {
     downloadWindow.webContents.executeJavaScript(
       `window.updateProgress(${percent}, ${downloaded}, ${total})`
     ).catch(() => {});
   }
 
-  // 也更新主視窗狀態
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-progress', percent);
   }
 });
 
-autoUpdater.on('update-downloaded', (info) => {
+autoUpdater.on('update-downloaded', async (info) => {
   console.log('[更新] 下載完成，版本：', info.version);
   updateDownloaded = true;
 
-  // 先關閉下載進度視窗
+  const VERIFY_SECONDS = 10;
+  const INSTALL_SECONDS = 10;
+
+  // 先讓進度條平滑補到 100%
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.webContents.executeJavaScript(`
+      document.getElementById('bar').style.width = '100%';
+      document.getElementById('percent').textContent = '100%';
+    `).catch(() => {});
+  }
+
+  await new Promise(r => setTimeout(r, 600));
+
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.webContents.executeJavaScript(`
+      if (window.setPhase) window.setPhase('verify', ${VERIFY_SECONDS});
+    `).catch(() => {});
+  }
+
+  await new Promise(r => setTimeout(r, VERIFY_SECONDS * 1000));
+
+  if (downloadWindow && !downloadWindow.isDestroyed()) {
+    downloadWindow.webContents.executeJavaScript(`
+      if (window.setPhase) window.setPhase('install', ${INSTALL_SECONDS});
+    `).catch(() => {});
+  }
+
+  await new Promise(r => setTimeout(r, INSTALL_SECONDS * 1000));
+
   if (downloadWindow && !downloadWindow.isDestroyed()) {
     downloadWindow.close();
     downloadWindow = null;
   }
 
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  // 跳出「下載完成」對話框
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: '更新完成',
-    message: `新版本 ${info.version} 已下載完成！`,
-    detail: '點擊「立即重啟」以套用更新。\n（或關閉程式後，下次開啟會自動套用）',
-    buttons: ['立即重啟', '稍後'],
-    defaultId: 0,
-    cancelId: 1
-  }).then((result) => {
-    if (result.response === 0) {
-      isQuitting = true;
-      autoUpdater.quitAndInstall();
-    }
-  });
+  isQuitting = true;
+  autoUpdater.quitAndInstall();
 });
 
 async function checkForUpdates(manual = false) {

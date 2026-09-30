@@ -1,6 +1,6 @@
 {
   "name": "accounting-system",
-  "version": "2.0.2",
+  "version": "2.1.5",
   "description": "個人記帳系統",
   "main": "main.js",
   "author": "hyc628",
@@ -40,7 +40,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },

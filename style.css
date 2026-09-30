@@ -142,7 +142,13 @@ body {
 .form-grid label { text-align: right; font-size: 14px; color: var(--text-secondary); font-weight: 600; }
 .inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
-select, input[type="text"], input[type="number"], input[type="email"], input[type="password"] {
+select,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"] {
   padding: 7px 10px;
   border: 1.5px solid var(--border-input);
   border-radius: 6px;
@@ -151,7 +157,12 @@ select, input[type="text"], input[type="number"], input[type="email"], input[typ
   color: var(--text-primary);
   transition: all 0.2s;
 }
-input[type="text"], input[type="number"], input[type="email"], input[type="password"] {
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"] {
   width: 100%; max-width: 340px;
 }
 select:focus, input:focus {
@@ -611,7 +622,7 @@ hr { border: none; border-top: 1px solid var(--border-light); margin: 8px 0; }
   font-weight: bold;
 }
 
-/* ===== 自訂對話框 ===== */
+/* ===== 自訂對話框（dialog.js 用） ===== */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -681,3 +692,88 @@ hr { border: none; border-top: 1px solid var(--border-light); margin: 8px 0; }
 }
 .modal-btn-secondary { background: #8095b0; }
 .modal-btn-secondary:hover { background: #6b7e94; }
+
+/* ========================================================= */
+/* ========== 編輯記錄彈窗（新增） ========== */
+/* ========================================================= */
+.edit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: editModalFadeIn 0.2s ease;
+}
+@keyframes editModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.edit-modal-box {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 14px;
+  padding: 24px 28px;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+  animation: editModalSlideUp 0.25s ease;
+}
+@keyframes editModalSlideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.edit-modal-box h3 {
+  margin: 0 0 18px 0;
+  font-size: 18px;
+  color: var(--text-heading);
+  border-bottom: 2px solid #2ECC71;
+  padding-bottom: 10px;
+}
+
+.edit-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* 編輯按鈕 */
+.edit-btn {
+  padding: 4px 12px;
+  font-size: 12.5px;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  font-weight: 600;
+}
+.edit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.45);
+}
+.edit-btn:active {
+  transform: translateY(0);
+}
+
+body.dark-mode .edit-modal-box {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+body.dark-mode .edit-modal-box h3 {
+  color: var(--text-heading);
+  border-bottom-color: #2ECC71;
+}
+body.dark-mode .edit-modal-actions {
+  border-top-color: var(--border-light);
+}

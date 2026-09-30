@@ -6,6 +6,7 @@ const INCOME_CATEGORIES = ["薪水", "獎金", "投資", "兼職", "其他收入
 let records = [];
 let selectedRows = new Set();
 let lastSavedRecordsJson = '';
+let editingId = null;   // 目前正在編輯的記錄物件參照
 
 let filters = {
   keyword: '', type: '', category: '', payment: '', month: '',
@@ -370,6 +371,178 @@ function bindEvents() {
   if (autoUpdateToggle) {
     autoUpdateToggle.addEventListener('change', onAutoUpdateToggle);
   }
+
+  // 編輯彈窗事件
+  bindEditModalEvents();
+}
+
+// ===================== 編輯記錄 =====================
+function bindEditModalEvents() {
+  // 類型切換
+  document.querySelectorAll('input[name="edit-type"]').forEach(r => {
+    r.addEventListener('change', (e) => {
+      const type = e.target.value;
+      buildEditCategorySelects(type);
+      updateEditPaymentVisibility(type, document.getElementById('edit-payment').value);
+    });
+  });
+
+  // 付款方式切換
+  document.getElementById('edit-payment').addEventListener('change', (e) => {
+    updateEditPaymentVisibility(
+      document.querySelector('input[name="edit-type"]:checked').value,
+      e.target.value
+    );
+  });
+
+  // 取消
+  document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+
+  // 點背景關閉
+  document.getElementById('edit-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'edit-modal') closeEditModal();
+  });
+
+  // 儲存
+  document.getElementById('edit-save').addEventListener('click', saveEditRecord);
+}
+
+function openEditModal(record) {
+  if (!record) return;
+  editingId = record;
+
+  document.querySelector(`input[name="edit-type"][value="${record.type}"]`).checked = true;
+  document.getElementById('edit-date').value = record.date;
+  document.getElementById('edit-time').value = record.time || '00:00';
+  document.getElementById('edit-item').value = record.item || '';
+  document.getElementById('edit-amount').value = record.amount;
+
+  buildEditCategorySelects(record.type, record.category);
+  buildEditPaymentSelects();
+  document.getElementById('edit-payment').value = record.payment || '現金';
+  document.getElementById('edit-mobile').value = record.mobile || MOBILE_PAYMENTS[0];
+
+  updateEditPaymentVisibility(record.type, record.payment);
+
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function buildEditCategorySelects(type, selectedCat) {
+  const sel = document.getElementById('edit-category');
+  sel.innerHTML = '';
+  const list = type === '收入' ? INCOME_CATEGORIES : CATEGORIES;
+  list.forEach(c => sel.add(new Option(c, c)));
+  if (selectedCat && list.includes(selectedCat)) {
+    sel.value = selectedCat;
+  }
+}
+
+function buildEditPaymentSelects() {
+  const paySel = document.getElementById('edit-payment');
+  if (paySel.options.length === 0) {
+    PAYMENT_METHODS.forEach(p => paySel.add(new Option(p, p)));
+  }
+
+  const mobSel = document.getElementById('edit-mobile');
+  if (mobSel.options.length === 0) {
+    MOBILE_PAYMENTS.forEach(m => mobSel.add(new Option(m, m)));
+  }
+}
+
+function updateEditPaymentVisibility(type, payment) {
+  const payLabel = document.getElementById('edit-payment-label');
+  const paySel = document.getElementById('edit-payment');
+  const mobLabel = document.getElementById('edit-mobile-label');
+  const mobSel = document.getElementById('edit-mobile');
+
+  if (type === '收入') {
+    payLabel.classList.add('hidden');
+    paySel.classList.add('hidden');
+    mobLabel.classList.add('hidden');
+    mobSel.classList.add('hidden');
+  } else {
+    payLabel.classList.remove('hidden');
+    paySel.classList.remove('hidden');
+
+    if (payment === '行動支付') {
+      mobLabel.classList.remove('hidden');
+      mobSel.classList.remove('hidden');
+    } else {
+      mobLabel.classList.add('hidden');
+      mobSel.classList.add('hidden');
+    }
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editingId = null;
+}
+
+async function saveEditRecord() {
+  if (!editingId) return;
+
+  const type = document.querySelector('input[name="edit-type"]:checked').value;
+  const date = document.getElementById('edit-date').value;
+  const time = document.getElementById('edit-time').value || '00:00';
+  const category = document.getElementById('edit-category').value;
+  const item = document.getElementById('edit-item').value.trim();
+  const amountStr = document.getElementById('edit-amount').value.trim();
+
+  if (!date) return customAlert('請選擇日期');
+  if (!item) return customAlert('請輸入項目內容');
+  const amount = parseFloat(amountStr);
+  if (isNaN(amount) || amount <= 0) return customAlert('請輸入正確的金額（正數字）');
+
+  let payment = '';
+  let mobile = '';
+  if (type === '支出') {
+    payment = document.getElementById('edit-payment').value;
+    if (payment === '行動支付') {
+      mobile = document.getElementById('edit-mobile').value;
+    }
+  }
+
+  // 詢問是否確定編輯
+  const detailText =
+    `類型：${type}\n` +
+    `日期：${date} ${time}\n` +
+    `類別：${category}\n` +
+    `項目：${item}\n` +
+    `金額：${amount}` +
+    (payment ? `\n付款：${payment}${mobile ? ' / ' + mobile : ''}` : '');
+
+  const ok = await customConfirm('確定要儲存這筆編輯嗎？\n\n' + detailText);
+  if (!ok) return;
+
+  const idx = records.indexOf(editingId);
+  if (idx === -1) {
+    await customAlert('找不到要編輯的記錄（可能已被刪除）');
+    closeEditModal();
+    return;
+  }
+
+  records[idx] = {
+    ...records[idx],
+    type,
+    date,
+    time,
+    category,
+    item,
+    amount,
+    payment,
+    mobile
+  };
+
+  scheduleSave();
+
+  refreshTable();
+  refreshStats();
+  buildCalendar();
+  buildBudgetPage();
+  buildReportPage();
+
+  closeEditModal();
 }
 
 // ===================== 自動更新 =====================
@@ -418,7 +591,6 @@ async function initUpdateInfo() {
     }
   }
 
-  // 載入「自動檢查更新」開關狀態
   const autoUpdateToggle = document.getElementById('auto-update-toggle');
   if (autoUpdateToggle) {
     try {
@@ -444,7 +616,6 @@ async function initUpdateInfo() {
   }
 }
 
-// 切換「自動檢查更新」開關
 async function onAutoUpdateToggle(e) {
   const enabled = e.target.checked;
   await window.api.setAutoCheckUpdate(enabled);
@@ -1233,8 +1404,14 @@ function refreshTable() {
       <td>${r.amount.toFixed(0)}</td>
       <td>${r.payment || ''}</td>
       <td>${r.mobile || ''}</td>
+      <td>
+        <button class="edit-btn" data-edit-idx="${idx}">✏️ 編輯</button>
+      </td>
     `;
-    tr.addEventListener('click', () => {
+
+    // 點整列 → 選取 / 取消選取（編輯按鈕除外）
+    tr.addEventListener('click', (e) => {
+      if (e.target.classList.contains('edit-btn')) return;
       if (selectedRows.has(idx)) {
         selectedRows.delete(idx);
         tr.classList.remove('selected');
@@ -1243,10 +1420,20 @@ function refreshTable() {
         tr.classList.add('selected');
       }
     });
+
     tbody.appendChild(tr);
 
     if (r.type === '收入') income += r.amount;
     else expense += r.amount;
+  });
+
+  // 綁定編輯按鈕
+  tbody.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const displayIdx = parseInt(btn.dataset.editIdx, 10);
+      openEditModal(sorted[displayIdx]);
+    });
   });
 
   document.getElementById('filter-result').textContent =
