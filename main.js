@@ -21,7 +21,7 @@ let isManualCheck = false;
 // 下載進度視窗
 // 非模態 + 發光動畫 + 平滑進度 + 邊跑邊閃
 // + 驗證/安裝階段 + 倒數 + 動態點
-// + Windows 開機風格轉圈圈（缺口圓弧，黃/綠）
+// + Windows 開機風格轉圈圈（3/4 圓弧，缺口旋轉，黃/綠）
 // =========================================================
 function showDownloadWindow(info) {
   if (downloadWindow && !downloadWindow.isDestroyed()) {
@@ -215,7 +215,7 @@ function showDownloadWindow(info) {
           text-shadow: 0 0 16px rgba(46,204,113,0.9);
         }
 
-        /* ===== Windows 開機風格轉圈圈（缺口圓弧，黃/綠） ===== */
+        /* ===== Windows 開機風格轉圈圈（3/4 圓弧，缺口旋轉，黃/綠） ===== */
         .spinner {
           display: none;
           width: 36px;
@@ -233,7 +233,7 @@ function showDownloadWindow(info) {
           border-radius: 50%;
           /* 缺口圓弧：3 邊有顏色，1 邊透明 */
           border: 3px solid transparent;
-          animation: spin 1.2s linear infinite;
+          animation: spin 1.4s linear infinite;
         }
 
         @keyframes spin {
@@ -243,21 +243,19 @@ function showDownloadWindow(info) {
         .spinner.verify { display: block; }
         .spinner.install { display: block; }
 
-        /* 驗證階段：黃色 */
+        /* 驗證階段：黃色（純色，不發光） */
         .spinner.verify .ring {
           border-top-color: #FFD54F;
           border-right-color: #FFD54F;
           border-bottom-color: #FFD54F;
-          box-shadow: 0 0 10px rgba(255,213,79,0.7), 0 0 20px rgba(255,213,79,0.35);
         }
 
-        /* 安裝階段：綠色，轉更慢 */
+        /* 安裝階段：綠色（純色，轉更慢） */
         .spinner.install .ring {
           border-top-color: #2ECC71;
           border-right-color: #2ECC71;
           border-bottom-color: #2ECC71;
-          box-shadow: 0 0 10px rgba(46,204,113,0.7), 0 0 20px rgba(46,204,113,0.35);
-          animation: spin 1.6s linear infinite;
+          animation: spin 1.8s linear infinite;
         }
       </style>
     </head>
