@@ -3,13 +3,30 @@ const MOBILE_PAYMENTS = ["Samsung Pay", "Google Pay", "Line Pay", "悠遊付"];
 const CATEGORIES = ["餐飲", "交通", "購物", "娛樂", "醫療", "教育", "居家", "其他"];
 const INCOME_CATEGORIES = ["薪水", "獎金", "投資", "兼職", "其他收入"];
 
+// ===================== 月份工具 =====================
+function getCurrentMonth() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function getPrevMonth() {
+  const now = new Date();
+  now.setMonth(now.getMonth() - 1);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
 let records = [];
 let selectedRows = new Set();
 let lastSavedRecordsJson = '';
 let editingId = null;   // 目前正在編輯的記錄物件參照
 
 let filters = {
-  keyword: '', type: '', category: '', payment: '', month: '',
+  keyword: '', type: '', category: '', payment: '',
+  month: getCurrentMonth(),   // 預設當月
   amountMin: null, amountMax: null
 };
 
@@ -67,6 +84,24 @@ async function init() {
   });
 
   await initUpdateInfo();
+
+  // 跨月自動切換（每分鐘檢查一次）
+  setInterval(() => {
+    const curMonth = getCurrentMonth();
+    const prevMonth = getPrevMonth();
+    if (filters.month === prevMonth) {
+      console.log(`[跨月自動切換] ${prevMonth} → ${curMonth}`);
+      filters.month = curMonth;
+      const sel = document.getElementById('filter-month');
+      if (sel) {
+        if (![...sel.options].some(o => o.value === curMonth)) {
+          sel.add(new Option(curMonth, curMonth), sel.options[1]);
+        }
+        sel.value = curMonth;
+      }
+      refreshTable();
+    }
+  }, 60 * 1000);
 }
 
 async function loadRecordsFromCloud() {
@@ -228,13 +263,27 @@ function buildFilterOptions() {
 
 function buildFilterMonths() {
   const monthSel = document.getElementById('filter-month');
-  const current = monthSel.value;
+  const current = monthSel.value || filters.month;
   const months = [...new Set(records.map(r => r.date.slice(0, 7)))].sort().reverse();
+
+  // 確保當月一定在選單裡
+  const curMonth = getCurrentMonth();
+  if (!months.includes(curMonth)) {
+    months.unshift(curMonth);
+  }
 
   monthSel.innerHTML = '<option value="">全部</option>';
   months.forEach(m => monthSel.add(new Option(m, m)));
 
-  if (months.includes(current)) monthSel.value = current;
+  if (months.includes(current)) {
+    monthSel.value = current;
+    filters.month = current;
+  } else if (filters.month && months.includes(filters.month)) {
+    monthSel.value = filters.month;
+  } else {
+    monthSel.value = curMonth;
+    filters.month = curMonth;
+  }
 }
 
 function bindEvents() {
@@ -378,7 +427,6 @@ function bindEvents() {
 
 // ===================== 編輯記錄 =====================
 function bindEditModalEvents() {
-  // 類型切換
   document.querySelectorAll('input[name="edit-type"]').forEach(r => {
     r.addEventListener('change', (e) => {
       const type = e.target.value;
@@ -387,7 +435,6 @@ function bindEditModalEvents() {
     });
   });
 
-  // 付款方式切換
   document.getElementById('edit-payment').addEventListener('change', (e) => {
     updateEditPaymentVisibility(
       document.querySelector('input[name="edit-type"]:checked').value,
@@ -395,15 +442,12 @@ function bindEditModalEvents() {
     );
   });
 
-  // 取消
   document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
 
-  // 點背景關閉
   document.getElementById('edit-modal').addEventListener('click', (e) => {
     if (e.target.id === 'edit-modal') closeEditModal();
   });
 
-  // 儲存
   document.getElementById('edit-save').addEventListener('click', saveEditRecord);
 }
 
@@ -503,7 +547,6 @@ async function saveEditRecord() {
     }
   }
 
-  // 詢問是否確定編輯
   const detailText =
     `類型：${type}\n` +
     `日期：${date} ${time}\n` +
@@ -1409,7 +1452,6 @@ function refreshTable() {
       </td>
     `;
 
-    // 點整列 → 選取 / 取消選取（編輯按鈕除外）
     tr.addEventListener('click', (e) => {
       if (e.target.classList.contains('edit-btn')) return;
       if (selectedRows.has(idx)) {
@@ -1427,7 +1469,6 @@ function refreshTable() {
     else expense += r.amount;
   });
 
-  // 綁定編輯按鈕
   tbody.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
