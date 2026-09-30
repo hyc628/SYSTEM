@@ -18,7 +18,7 @@ let updateInfoCache = null;
 let isManualCheck = false;
 
 // =========================================================
-// 下載進度視窗（SVG 3/4 圓弧轉圈圈）
+// 下載進度視窗（SVG 3/4 圓弧轉圈圈，慢速）
 // =========================================================
 function showDownloadWindow(info) {
   if (downloadWindow && !downloadWindow.isDestroyed()) {
@@ -208,7 +208,7 @@ function showDownloadWindow(info) {
           text-shadow: 0 0 16px rgba(46,204,113,0.9);
         }
 
-        /* ===== SVG 3/4 圓弧轉圈圈 ===== */
+        /* ===== SVG 3/4 圓弧轉圈圈（慢速） ===== */
         .spinner {
           display: none;
           width: 40px;
@@ -221,7 +221,7 @@ function showDownloadWindow(info) {
         .spinner svg {
           width: 100%;
           height: 100%;
-          animation: spin 1.4s linear infinite;
+          animation: spin 2.5s linear infinite;
           transform-origin: 50% 50%;
         }
 
@@ -233,7 +233,7 @@ function showDownloadWindow(info) {
         .spinner.install { display: block; }
 
         .spinner.install svg {
-          animation: spin 1.8s linear infinite;
+          animation: spin 3.5s linear infinite;
         }
       </style>
     </head>
@@ -325,7 +325,7 @@ function showDownloadWindow(info) {
 
             startDots(hint, '正在比對檔案指紋（SHA512）');
 
-            let remain = totalSeconds || 10;
+            let remain = totalSeconds || 15;
             countdown.textContent = '剩餘 ' + remain + ' 秒';
             countdownTimer = setInterval(() => {
               remain -= 1;
@@ -349,7 +349,7 @@ function showDownloadWindow(info) {
 
             startDots(hint, '即將自動重啟並套用更新');
 
-            let remain = totalSeconds || 10;
+            let remain = totalSeconds || 15;
             countdown.textContent = '剩餘 ' + remain + ' 秒';
             countdownTimer = setInterval(() => {
               remain -= 1;
@@ -511,8 +511,8 @@ autoUpdater.on('update-downloaded', async (info) => {
   console.log('[更新] 下載完成，版本：', info.version);
   updateDownloaded = true;
 
-  const VERIFY_SECONDS = 10;
-  const INSTALL_SECONDS = 10;
+  const VERIFY_SECONDS = 15;
+  const INSTALL_SECONDS = 15;
 
   if (downloadWindow && !downloadWindow.isDestroyed()) {
     downloadWindow.webContents.executeJavaScript(`
