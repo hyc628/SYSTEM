@@ -18,7 +18,7 @@ let updateInfoCache = null;
 let isManualCheck = false;
 
 // =========================================================
-// 下載進度視窗（SVG 3/4 圓弧轉圈圈，慢速）
+// 下載進度視窗（SVG 3/4 圓弧轉圈圈，慢速，全部階段動態點）
 // =========================================================
 function showDownloadWindow(info) {
   if (downloadWindow && !downloadWindow.isDestroyed()) {
@@ -272,13 +272,6 @@ function showDownloadWindow(info) {
           document.getElementById('total').textContent = (total / 1024 / 1024).toFixed(1) + ' MB';
         };
 
-        window.startDownload = function() {
-          document.getElementById('title').textContent = '正在下載更新';
-          const hint = document.getElementById('hint');
-          hint.textContent = '正在從 GitHub 下載檔案...';
-          hint.className = 'hint';
-        };
-
         let countdownTimer = null;
         let dotsTimer = null;
 
@@ -298,6 +291,13 @@ function showDownloadWindow(info) {
             dotsTimer = null;
           }
         }
+
+        window.startDownload = function() {
+          document.getElementById('title').textContent = '正在下載更新';
+          const hint = document.getElementById('hint');
+          hint.className = 'hint';
+          startDots(hint, '正在從 GitHub 下載檔案');
+        };
 
         window.setPhase = function(phase, totalSeconds) {
           const title = document.getElementById('title');

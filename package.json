@@ -1,6 +1,6 @@
 {
   "name": "accounting-system",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "個人記帳系統",
   "main": "main.js",
   "author": "hyc628",
